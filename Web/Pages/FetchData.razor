@@ -1,0 +1,82 @@
+﻿@page "/fetchdata"
+
+@using Web.Data
+@using Web.Extensions
+@using Microsoft.Extensions.Caching.Distributed
+@inject IDistributedCache cashe
+@inject WeatherForecastService ForecastService
+
+<h1>Weather forecast</h1>
+
+<p>This component demonstrates fetching data from a service.</p>
+<button @onclick="LoadForecast">Load data</button>
+
+@if (forecasts is null && location == "")
+{
+    <p class="text-muted">Click the button to load data</p>
+}
+else if (forecasts == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <h4 class="@casheClass">@location</h4>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Temp. (C)</th>
+                <th>Temp. (F)</th>
+                <th>Summary</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var forecast in forecasts)
+            {
+                <tr>
+                    <td>@forecast.Date.ToShortDateString()</td>
+                    <td>@forecast.TemperatureC</td>
+                    <td>@forecast.TemperatureF</td>
+                    <td>@forecast.Summary</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+
+@code {
+    private string location = "";
+    private string casheClass = "";
+    private WeatherForecast[] forecasts;
+
+    private async void LoadForecast()
+    {
+        location = null;
+        casheClass = null;
+        string recId = "WeatherForecast_" + DateTime.Now.ToString("G");
+
+        forecasts = await cashe.GetRecordAsync<WeatherForecast[]>(recId);
+
+        if (forecasts is null)
+        {
+            forecasts = await ForecastService.GetForecastAsync(DateTime.Now);
+            location = "Loaded from API Service at" + DateTime.Now;
+            casheClass = "";
+
+            await cashe.SetRecordAsync(recId, forecasts);
+        }
+        else
+        {
+            location = "Loaded from Cashe at" + DateTime.Now;
+            casheClass = "text-primary";
+        }
+        var t = 1;
+    }
+
+    //protected override async Task OnInitializedAsync()
+    //{
+    //    forecasts = await ForecastService.GetForecastAsync(DateTime.Now);
+    //}
+}
